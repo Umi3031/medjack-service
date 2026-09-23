@@ -1,2 +1,314 @@
 # medjack-service
 Үйлдэвэрлэлийн дадлагын үеээр хийсэн миний санаалуудын цогц систем болох МЕДЖЕК Сервис вэб систем. Жишээ загвар
+# МЕДЖЕК Сервис
+
+Эмнэлгийн тоног төхөөрөмжийн паспорт, баталгааны сануулга, засвар үйлчилгээний бүртгэлийн вэб систем.
+
+Энэ систем нь МЕДЖЕК ХХК-д хийсэн үйлдвэрлэлийн дадлагын үр дүнд санал болгосон шийдлийн ажилладаг прототип юм.
+ Зохиогч нь Б. Өмирсерик (23B1NUM3031), МУИС, МТЭС, 2026 он.
+---
+
+## 1. Системийн бүтэц
+
+```
+  Гар утас / компьютер (хөтөч)
+            │  HTTPS
+            ▼
+  ┌───────────────────┐
+  │   Nginx (80/443)  │   SSL гэрчилгээ, reverse proxy
+  └─────────┬─────────┘
+            ▼
+  ┌───────────────────────────────────────┐
+  │  FastAPI програм (uvicorn, порт 8000) │
+  │   /api/...  → REST API (JWT хамгаалалт)│
+  │   /         → frontend (HTML, CSS, JS) │
+  └─────────┬─────────────────────────────┘
+            ▼
+  ┌───────────────────┐
+  │   PostgreSQL 16   │   customer · device · service_ticket · app_user
+  └───────────────────┘
+```
+
+### Хавтасны бүтэц
+
+```
+medjack-service/
+├── README.md                  ← заавар
+├── docker-compose.yml         ← PostgreSQL + програмыг хамт асаах
+├── .env.example               ← тохиргооны загвар (.env болгон хуулна)
+├── backend/
+│   ├── Dockerfile
+│   ├── requirements.txt       ← Python сангууд
+│   └── app/
+│       ├── main.py            ← програмын эхлэх цэг, маршрутуудыг холбоно
+│       ├── config.py          ← .env-ээс тохиргоо унших
+│       ├── database.py        ← өгөгдлийн сантай холбогдох
+│       ├── models.py          ← хүснэгтүүдийн ORM загвар (ER загвар)
+│       ├── schemas.py         ← API-ийн оролт, гаралтын шалгалт
+│       ├── security.py        ← нууц үгийн хэш, JWT, эрхийн шалгалт
+│       ├── services.py        ← бизнес логик: сануулга, мэдэгдэл, статистик
+│       ├── seed.py            ← жишээ өгөгдөл оруулах
+│       ├── create_user.py     ← хэрэглэгч нэмэх, нууц үг солих
+│       └── routers/           ← API-ийн маршрутууд
+│           ├── auth.py        (нэвтрэлт)
+│           ├── customers.py   (харилцагч)
+│           ├── devices.py     (төхөөрөмжийн паспорт)
+│           ├── tickets.py     (засварын дуудлага)
+│           ├── dashboard.py   (самбар, сануулга)
+│           ├── public.py      (QR код, нийтийн паспорт)
+│           └── export.py      (CSV экспорт)
+├── frontend/
+│   ├── index.html             ← үндсэн програм (нэвтрэлттэй)
+│   ├── passport.html          ← QR уншуулахад нээгдэх нийтийн хуудас
+│   ├── app.js                 ← интерфэйсийн логик
+│   └── styles.css             ← загвар, өнгө, гар утасны дэлгэц
+├── database/
+│   └── schema.sql             ← өгөгдлийн сангийн бүтэц цэвэр SQL-ээр (лавлах)
+└── deploy/
+    ├── nginx-medjack.conf     ← Nginx тохиргоо
+    ├── medjack.service        ← systemd үйлчилгээ (Docker-гүй хувилбар)
+    └── backup.sh              ← өдөр тутмын нөөцлөлт
+```
+---
+
+**1. Виртуал орчин үүсгэж, сангуудаа суулгана.**
+
+Windows:
+```powershell
+cd medjack-service\backend
+python -m venv .venv
+.venv\Scripts\activate
+pip install -r requirements.txt
+copy ..\.env.example .env
+```
+macOS / Linux:
+```bash
+cd medjack-service/backend
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+cp ../.env.example .env
+```
+
+> PowerShell «running scripts is disabled» гэсэн алдаа өгвөл нэг удаа дараах командыг ажиллуулна:
+> `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`
+
+**2. `.env` файлыг засна.** `backend/.env` файлыг Notepad эсвэл VS Code-оор нээнэ. `DATABASE_URL=sqlite:///./medjack.db` мөр хэвээр байх ёстой. `SERVICE_PHONE=` мөрөнд компанийн сервисийн утсыг бичнэ.
+
+**3. Хөтөч дээр нээнэ.**
+- Систем: http://localhost:8000
+- API-ийн баримт бичиг (Swagger): http://localhost:8000/docs
+- Нэвтрэх: `admin` / `310200548` (`.env`-д заасан утга)
+
+### 3. Кодыг сервер рүү хуулна
+
+**Сонголт 1: GitHub ашиглах** (зөвлөмж). Кодыг private repository-д оруулсан бол:
+```bash
+sudo mkdir -p /opt/medjack-service && sudo chown medjack: /opt/medjack-service
+git clone https://github.com/ТАНЫ_НЭР/medjack-service.git /opt/medjack-service
+```
+
+**Сонголт 2: Өөрийн компьютерээс шууд хуулах.**
+```bash
+scp -r medjack-service medjack@СЕРВЕРИЙН_IP:/opt/
+```
+
+### 4. Тохиргоо хийж асаана
+
+```bash
+cd /opt/medjack-service
+cp .env.example .env
+nano .env
+```
+
+`.env` файлд дараах утгуудыг бөглөнө:
+```
+DB_PASSWORD=маш-урт-нууц-үг
+JWT_SECRET=санамсаргүй-48-тэмдэгт
+ADMIN_PASSWORD=түр-нууц-үг
+PUBLIC_BASE_URL=https://service.medjack.mn
+SERVICE_PHONE=ХХХХ-ХХХХ
+```
+
+Хадгалахдаа `Ctrl + O`, `Enter`, дараа нь гарахдаа `Ctrl + X` дарна. Дараа нь асаана:
+```bash
+docker compose up -d --build
+curl http://127.0.0.1:8000/api/health     # {"status":"ok"} гэж гарвал амжилттай
+```
+
+### 5. Nginx ба HTTPS тохируулна
+
+```bash
+sudo apt install -y nginx certbot python3-certbot-nginx
+sudo cp deploy/nginx-medjack.conf /etc/nginx/sites-available/medjack
+sudo nano /etc/nginx/sites-available/medjack        # server_name-ийг өөрийн домэйнээр солино
+sudo ln -s /etc/nginx/sites-available/medjack /etc/nginx/sites-enabled/
+sudo nginx -t && sudo systemctl reload nginx
+
+sudo certbot --nginx -d service.medjack.mn        # үнэгүй SSL гэрчилгээ (Let's Encrypt)
+```
+
+Certbot нь HTTP-ээс HTTPS руу автоматаар шилжүүлэх тохиргоог нэмж, гэрчилгээг 90 хоног тутамд өөрөө сунгана.
+
+### 6. Галт хана (firewall)
+
+```bash
+sudo ufw allow OpenSSH
+sudo ufw allow 'Nginx Full'
+sudo ufw enable
+```
+
+Програмын 8000 порт болон PostgreSQL-ийн 5432 порт гаднаас нээлттэй биш. Бүх хандалт зөвхөн Nginx-ээр дамжина.
+
+### 7. Өдөр тутмын нөөцлөлт
+
+```bash
+crontab -e
+```
+Файлын төгсгөлд дараах мөрийг нэмнэ:
+```
+0 2 * * * /opt/medjack-service/deploy/backup.sh >> /home/medjack/backup.log 2>&1
+```
+
+Ингэснээр өдөр бүр 02:00 цагт `backups/` хавтаст нөөц үүсч, 14 хоногоос хуучин нөөц автоматаар устна. Нөөцийг сэргээх заавар `deploy/backup.sh` файлын эхэнд бичигдсэн байгаа.
+
+### 8. Шинэчлэл хийх
+
+```bash
+cd /opt/medjack-service
+git pull                        # эсвэл шинэ файлуудыг scp-ээр хуулна
+docker compose up -d --build
+```
+
+### Docker-гүй суулгах хувилбар
+
+Docker ашиглахгүй бол PostgreSQL-ийг шууд суулгаж, програмыг systemd үйлчилгээгээр ажиллуулна.
+
+```bash
+sudo apt install -y python3-venv postgresql
+sudo -u postgres psql -c "CREATE USER medjack WITH PASSWORD 'НУУЦ_ҮГ';"
+sudo -u postgres psql -c "CREATE DATABASE medjack OWNER medjack;"
+
+cd /opt/medjack-service/backend
+python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
+cp ../.env.example .env
+nano .env     # DATABASE_URL=postgresql+psycopg://medjack:НУУЦ_ҮГ@localhost:5432/medjack
+
+sudo cp ../deploy/medjack.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now medjack
+sudo systemctl status medjack
+```
+
+Үүний дараа Nginx, HTTPS, галт ханын 5–6-р алхмыг адилхан хийнэ.
+
+---
+
+## 3. Анхны тохиргоо ба хэрэглэгч
+
+Анх асаахад `.env`-д заасан **админ** автоматаар үүснэ. Нэвтэрсний дараа админы нууц үгийг заавал солино.
+
+Docker хувилбарт:
+```bash
+docker compose exec app python -m app.create_user admin --reset
+```
+
+Docker-гүй хувилбарт (`backend` хавтаст, `.venv` идэвхтэй үед):
+```bash
+python -m app.create_user admin --reset
+```
+
+Инженер ажилтан нэмэхдээ:
+```bash
+python -m app.create_user bold --name "Б. Болд" --role engineer
+```
+
+| Эрх | Боломж |
+|---|---|
+| `admin` | Бүх үйлдэл, түүн дотор бичлэг устгах |
+| `engineer` | Харилцагч, төхөөрөмж, засварын дуудлага бүртгэх, засах. Устгах эрхгүй |
+
+---
+
+## 4. Системийг ашиглах
+
+- **Хяналтын самбар.** Ашиглалтад байгаа төхөөрөмж, баталгаат төхөөрөмж, нээлттэй дуудлагын тоо харагдана. Баталгаа 30 хоногийн дотор, төлөвлөгөөт үйлчилгээ 14 хоногийн дотор болох бол сануулга гарна. Сануулга нь 7, 14, 30 хоногоор өнгөөр ялгагдана. **«Мэдэгдэл»** товч дарахад харилцагчид илгээх бэлэн текст гарна. Сүүлийн 6 сарын суурилуулалт, засварын график болон дуудлага шийдвэрлэсэн дундаж хугацаа мөн харагдана.
+- **Төхөөрөмж.** Серийн дугаар, загвар, эмнэлгийн нэрээр шууд хайна. Мөр дээр дарахад паспорт нээгдэнэ. Паспортад QR код, баталгааны хугацааны шугам, засварын бүрэн түүх харагдана.
+- **Засвар үйлчилгээ.** Шинэ дуудлага нээхэд төхөөрөмжийн төлөв автоматаар «Засварт» болно. Дуудлагыг хаахад «Ажиллаж байгаа» төлөвт буцна. Дуудлагыг хаахын өмнө хийсэн ажлыг заавал бичнэ.
+- **QR шошго.** Бүх төхөөрөмжийн шошгыг нэг хуудсанд гаргана. Наалттай цаасан дээр хэвлэж төхөөрөмжид наана.
+- **CSV татах.** Өгөгдлийг Google Sheets эсвэл Excel рүү экспортолно.
+
+### Хамгаалалтад үзүүлэх санал болгох дараалал
+
+1. **Самбар.** Сануулгуудыг үзүүлж, 30/14/7 хоногийн логикийг тайлбарлана.
+2. **Төхөөрөмж.** Серийн дугаараар хайлт хийгээд нэг паспортыг нээнэ.
+3. **QR уншуулах.** Утсаараа QR кодыг уншуулж, нэвтрэлтгүй нийтийн паспорт нээгдэхийг үзүүлнэ.
+4. **Засвар бүртгэх.** Шинэ дуудлага нээхэд төхөөрөмжийн төлөв «Засварт» болж өөрчлөгдөхийг харуулна.
+5. **API баримт бичиг.** http://localhost:8000/docs хаягаар REST API-ийн бүтцийг үзүүлнэ.
+6. **Код.** `services.py` файлын `build_reminders` функц болон `security.py` файлыг тайлбарлана.
+
+---
+
+## 5. REST API
+
+Бүх `/api/...` зам (`/api/public/...`-ээс бусад) `Authorization: Bearer <token>` толгой шаардана. Дэлгэрэнгүйг `/docs` хуудаснаас үзнэ.
+
+| Арга | Зам | Тайлбар |
+|---|---|---|
+| POST | `/api/auth/login` | Нэвтрэх, JWT токен авах |
+| GET | `/api/auth/me` | Нэвтэрсэн хэрэглэгч |
+| GET, POST | `/api/customers` | Харилцагчийн жагсаалт, шинээр бүртгэх |
+| PUT, DELETE | `/api/customers/{id}` | Засах, устгах (устгах нь зөвхөн админ) |
+| GET, POST | `/api/devices?q=&warranty=` | Төхөөрөмжийн жагсаалт (хайлт, шүүлт), бүртгэх |
+| GET, PUT, DELETE | `/api/devices/{code}` | Паспорт ба засварын түүх, засах, устгах |
+| GET, POST | `/api/tickets?status=open\|closed\|all` | Засварын дуудлага |
+| PUT, DELETE | `/api/tickets/{id}` | Шинэчлэх, хаах, устгах |
+| GET | `/api/dashboard` | Самбарын үзүүлэлт, сануулга, статистик |
+| GET | `/api/export/{customers\|devices\|tickets}.csv` | CSV экспорт |
+| GET | `/api/public/devices/{code}` | Нийтийн паспорт (нэвтрэлтгүй) |
+| GET | `/api/public/qr/{code}.svg` | QR зураг (нэвтрэлтгүй) |
+| GET | `/api/health` | Серверийн төлөв |
+
+---
+
+## 6. Аюулгүй байдал ба өгөгдлийн бүрэн бүтэн байдал
+
+Тайлангийн 5.4 ба 5.7-д дурдсан эрсдэлүүдийг дараах байдлаар шийдсэн.
+
+- **Нууц үг.** Ил хэлбэрээр хадгалахгүй. PBKDF2-SHA256 алгоритмаар 390 000 давталттай, хэрэглэгч бүрт тусдаа давстай хэшилнэ.
+- **Нэвтрэлт.** JWT токен ашиглана. Токен 8 цагийн дараа хүчингүй болно.
+- **Эрхийн ялгаатай удирдлага.** Устгах үйлдлийг зөвхөн админ хийнэ.
+- **Нийтийн паспорт.** Харилцагчийн холбоо барих мэдээлэл болон засварын дэлгэрэнгүй тэмдэглэлийг ил гаргахгүй.
+- **Өгөгдлийн алдаанаас сэргийлэх.** Серийн дугаар давхардахгүй. Баталгаа суурилуулалтаас өмнө дуусах боломжгүй. Хаагдсан дуудлага заавал хийсэн ажилтай байна. Эдгээр нөхцөлийг API болон өгөгдлийн сангийн CHECK хоёр түвшинд шалгана.
+- **Түүх хамгаалах.** Засварын түүхтэй төхөөрөмж, төхөөрөмжтэй харилцагчийг устгахыг хориглоно.
+- **XSS хамгаалалт.** Хэрэглэгчийн оруулсан бүх текстийг HTML-д оруулахаас өмнө escape хийнэ.
+- **SQL injection хамгаалалт.** Бүх асуулгыг SQLAlchemy-ийн параметрчилсэн хэлбэрээр гүйцэтгэнэ.
+- **Сервер.** Програм root эрхгүй хэрэглэгчээр ажиллана. Зөвхөн HTTPS-ээр хандана. Өгөгдлийн сан гаднаас нээлттэй биш. Өдөр бүр нөөцлөгдөнө.
+- **Өвчтөний мэдээлэл.** Систем өвчтөний мэдээлэл огт хадгалахгүй, зөвхөн тоног төхөөрөмжийн бүртгэл хөтөлнө.
+
+---
+
+## 7. Түгээмэл асуудал ба шийдэл
+
+| Асуудал | Шийдэл |
+|---|---|
+| `python` команд олдохгүй | Python-ийг «Add to PATH» сонголттой дахин суулгана. macOS/Linux дээр `python3` гэж бичнэ |
+| `pip install` алдаа өгнө | `python -m pip install --upgrade pip` командыг ажиллуулаад дахин оролдоно |
+| `Address already in use` | 8000 порт завгүй байна: `uvicorn app.main:app --port 8001` |
+| Нэвтрэх үед «нууц үг буруу» | Админ зөвхөн анх асаахад үүсдэг. `python -m app.create_user admin --reset` командаар шинэчилнэ |
+| QR код утсан дээр нээгдэхгүй | `PUBLIC_BASE_URL`-д `localhost` биш компьютерийн IP эсвэл домэйн бичигдсэн эсэхийг шалгана |
+| Docker: `DB_PASSWORD` алдаа | Төслийн үндсэн хавтаст `.env` файл үүсгэсэн эсэхийг шалгана |
+| Жишээ өгөгдлийг цэвэрлэх | SQLite: `backend/medjack.db` файлыг устгана. Docker: `docker compose down -v` |
+
+---
+
+## 8. Ашигласан технологи
+
+| Давхарга | Технологи |
+|---|---|
+| Backend | Python 3.12, FastAPI, Pydantic 2, SQLAlchemy 2 |
+| Өгөгдлийн сан | PostgreSQL 16 (туршилтад SQLite) |
+| Нэвтрэлт | JWT (PyJWT), PBKDF2-SHA256 |
+| Frontend | HTML5, CSS3, JavaScript (ES2020). Build хэрэгсэлгүй тул шууд ажиллана |
+| QR код | `qrcode` сан, SVG формат |
+| Байршуулалт | Docker Compose, Nginx, Let's Encrypt, Ubuntu VPS |
