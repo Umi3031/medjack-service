@@ -71,72 +71,8 @@ medjack-service/
 ```
 ---
 
-**1. Виртуал орчин үүсгэж, сангуудаа суулгана.**
 
-Windows:
-```powershell
-cd medjack-service\backend
-python -m venv .venv
-.venv\Scripts\activate
-pip install -r requirements.txt
-copy ..\.env.example .env
-```
-macOS / Linux:
-```bash
-cd medjack-service/backend
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-cp ../.env.example .env
-```
-
-> PowerShell «running scripts is disabled» гэсэн алдаа өгвөл нэг удаа дараах командыг ажиллуулна:
-> `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`
-
-**2. `.env` файлыг засна.** `backend/.env` файлыг Notepad эсвэл VS Code-оор нээнэ. `DATABASE_URL=sqlite:///./medjack.db` мөр хэвээр байх ёстой. `SERVICE_PHONE=` мөрөнд компанийн сервисийн утсыг бичнэ.
-
-**3. Хөтөч дээр нээнэ.**
-- Систем: http://localhost:8000
-- API-ийн баримт бичиг (Swagger): http://localhost:8000/docs
-- Нэвтрэх: `admin` / `310200548` (`.env`-д заасан утга)
-
-### 3. Кодыг сервер рүү хуулна
-
-**Сонголт 1: GitHub ашиглах** (зөвлөмж). Кодыг private repository-д оруулсан бол:
-```bash
-sudo mkdir -p /opt/medjack-service && sudo chown medjack: /opt/medjack-service
-git clone https://github.com/ТАНЫ_НЭР/medjack-service.git /opt/medjack-service
-```
-
-**Сонголт 2: Өөрийн компьютерээс шууд хуулах.**
-```bash
-scp -r medjack-service medjack@СЕРВЕРИЙН_IP:/opt/
-```
-
-### 4. Тохиргоо хийж асаана
-
-```bash
-cd /opt/medjack-service
-cp .env.example .env
-nano .env
-```
-
-`.env` файлд дараах утгуудыг бөглөнө:
-```
-DB_PASSWORD=маш-урт-нууц-үг
-JWT_SECRET=санамсаргүй-48-тэмдэгт
-ADMIN_PASSWORD=түр-нууц-үг
-PUBLIC_BASE_URL=https://service.medjack.mn
-SERVICE_PHONE=ХХХХ-ХХХХ
-```
-
-Хадгалахдаа `Ctrl + O`, `Enter`, дараа нь гарахдаа `Ctrl + X` дарна. Дараа нь асаана:
-```bash
-docker compose up -d --build
-curl http://127.0.0.1:8000/api/health     # {"status":"ok"} гэж гарвал амжилттай
-```
-
-### 5. Nginx ба HTTPS тохируулна
+### 2. Nginx ба HTTPS тохируулна
 
 ```bash
 sudo apt install -y nginx certbot python3-certbot-nginx
@@ -150,7 +86,7 @@ sudo certbot --nginx -d service.medjack.mn        # үнэгүй SSL гэрчи�
 
 Certbot нь HTTP-ээс HTTPS руу автоматаар шилжүүлэх тохиргоог нэмж, гэрчилгээг 90 хоног тутамд өөрөө сунгана.
 
-### 6. Галт хана (firewall)
+### 3. Галт хана (firewall)
 
 ```bash
 sudo ufw allow OpenSSH
@@ -160,7 +96,7 @@ sudo ufw enable
 
 Програмын 8000 порт болон PostgreSQL-ийн 5432 порт гаднаас нээлттэй биш. Бүх хандалт зөвхөн Nginx-ээр дамжина.
 
-### 7. Өдөр тутмын нөөцлөлт
+### 3. Өдөр тутмын нөөцлөлт
 
 ```bash
 crontab -e
@@ -172,7 +108,7 @@ crontab -e
 
 Ингэснээр өдөр бүр 02:00 цагт `backups/` хавтаст нөөц үүсч, 14 хоногоос хуучин нөөц автоматаар устна. Нөөцийг сэргээх заавар `deploy/backup.sh` файлын эхэнд бичигдсэн байгаа.
 
-### 8. Шинэчлэл хийх
+### 4. Шинэчлэл хийх
 
 ```bash
 cd /opt/medjack-service
@@ -199,12 +135,9 @@ sudo systemctl daemon-reload
 sudo systemctl enable --now medjack
 sudo systemctl status medjack
 ```
-
-Үүний дараа Nginx, HTTPS, галт ханын 5–6-р алхмыг адилхан хийнэ.
-
 ---
 
-## 3. Анхны тохиргоо ба хэрэглэгч
+## 5. Анхны тохиргоо ба хэрэглэгч
 
 Анх асаахад `.env`-д заасан **админ** автоматаар үүснэ. Нэвтэрсний дараа админы нууц үгийг заавал солино.
 
@@ -230,7 +163,7 @@ python -m app.create_user bold --name "Б. Болд" --role engineer
 
 ---
 
-## 4. Системийг ашиглах
+## 6. Системийг ашиглах
 
 - **Хяналтын самбар.** Ашиглалтад байгаа төхөөрөмж, баталгаат төхөөрөмж, нээлттэй дуудлагын тоо харагдана. Баталгаа 30 хоногийн дотор, төлөвлөгөөт үйлчилгээ 14 хоногийн дотор болох бол сануулга гарна. Сануулга нь 7, 14, 30 хоногоор өнгөөр ялгагдана. **«Мэдэгдэл»** товч дарахад харилцагчид илгээх бэлэн текст гарна. Сүүлийн 6 сарын суурилуулалт, засварын график болон дуудлага шийдвэрлэсэн дундаж хугацаа мөн харагдана.
 - **Төхөөрөмж.** Серийн дугаар, загвар, эмнэлгийн нэрээр шууд хайна. Мөр дээр дарахад паспорт нээгдэнэ. Паспортад QR код, баталгааны хугацааны шугам, засварын бүрэн түүх харагдана.
@@ -249,7 +182,7 @@ python -m app.create_user bold --name "Б. Болд" --role engineer
 
 ---
 
-## 5. REST API
+## 7. REST API
 
 Бүх `/api/...` зам (`/api/public/...`-ээс бусад) `Authorization: Bearer <token>` толгой шаардана. Дэлгэрэнгүйг `/docs` хуудаснаас үзнэ.
 
@@ -271,7 +204,7 @@ python -m app.create_user bold --name "Б. Болд" --role engineer
 
 ---
 
-## 6. Аюулгүй байдал ба өгөгдлийн бүрэн бүтэн байдал
+## 8. Аюулгүй байдал ба өгөгдлийн бүрэн бүтэн байдал
 
 Тайлангийн 5.4 ба 5.7-д дурдсан эрсдэлүүдийг дараах байдлаар шийдсэн.
 
@@ -288,7 +221,7 @@ python -m app.create_user bold --name "Б. Болд" --role engineer
 
 ---
 
-## 7. Түгээмэл асуудал ба шийдэл
+## 9. Түгээмэл асуудал ба шийдэл
 
 | Асуудал | Шийдэл |
 |---|---|
@@ -302,7 +235,7 @@ python -m app.create_user bold --name "Б. Болд" --role engineer
 
 ---
 
-## 8. Ашигласан технологи
+## 10. Ашигласан технологи
 
 | Давхарга | Технологи |
 |---|---|
