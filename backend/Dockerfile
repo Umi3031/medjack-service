@@ -1,5 +1,4 @@
-# МЕДЖЕК Сервис — backend ба frontend-ийг нэг контейнерт багцлана.
-# Build context нь төслийн үндсэн хавтас (docker-compose.yml-д заасан).
+# Build context нь төслийн үндсэн хавтас
 FROM python:3.12-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
