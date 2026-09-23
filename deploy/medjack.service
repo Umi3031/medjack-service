@@ -1,0 +1,17 @@
+# systemd үйлчилгээ: Docker-гүй суулгасан үед програмыг сервер асахад
+# автоматаар эхлүүлж, унавал дахин асаана.
+# Байршуулах: /etc/systemd/system/medjack.service
+[Unit]
+Description=MEDJACK Service (FastAPI)
+After=network.target postgresql.service
+
+[Service]
+User=medjack
+WorkingDirectory=/opt/medjack-service/backend
+EnvironmentFile=/opt/medjack-service/backend/.env
+ExecStart=/opt/medjack-service/backend/.venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8000 --workers 2 --proxy-headers
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="mn">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Төхөөрөмжийн паспорт — МЕДЖЕК Сервис</title>
+<link href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+<style>
+  main{max-width:560px;margin:0 auto;padding:24px 16px 40px}
+  .tag{grid-template-columns:1fr}
+  .tag .qr{display:none}
+  .actions{display:grid;gap:10px;margin-top:18px}
+  .actions .btn{text-align:center;text-decoration:none;padding:12px}
+  .foot{margin-top:22px;font-size:13px;color:var(--ink-2);text-align:center}
+</style>
+</head>
+<body>
+<!--
+  Нийтийн паспортын хуудас.
+  Төхөөрөмж дээрх QR кодыг утсаар уншуулахад энэ хуудас нээгдэнэ:
+      /passport.html?code=MJ-0001
+  Нэвтрэлт шаардахгүй бөгөөд зөвхөн нууцлалгүй мэдээллийг харуулна.
+-->
+<main id="view"><div class="empty">Ачаалж байна…</div></main>
+<script>
+(function () {
+  "use strict";
+  const esc = (v) => String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  const fmt = (s) => (s ? String(s).slice(0, 10).replace(/-/g, ".") : "—");
+  const CLS = { "Хүчинтэй": "p-ok", "30 хоногт дуусна": "p-warn", "7 хоногт дуусна": "p-bad", "Дууссан": "p-off" };
+
+  /**
+   * URL-аас төхөөрөмжийн кодыг уншиж, нийтийн API-аас паспортыг татаж харуулна.
+   * Инженер нэвтэрсэн бол «Засварын бүрэн түүх» товчоор үндсэн систем рүү шилжинэ.
+   */
+  async function show() {
+    const code = new URLSearchParams(location.search).get("code") || "";
+    const view = document.getElementById("view");
+    try {
+      const res = await fetch(`/api/public/devices/${encodeURIComponent(code)}`);
+      if (!res.ok) throw new Error(res.status === 404 ? "Энэ кодтой төхөөрөмж бүртгэлд алга." : "Мэдээлэл ачаалж чадсангүй.");
+      const d = await res.json();
+      const name = [d.brand, d.model].filter(Boolean).join(" ");
+      document.title = `${name} · ${d.device_code}`;
+      view.innerHTML = `<article class="tag"><div class="body">
+          <div class="cat">${esc(d.category)} · <span class="mono">${esc(d.device_code)}</span></div>
+          <h1>${esc(name)}</h1>
+          <div class="sn">SN ${esc(d.serial_number)}</div>
+          <dl class="facts">
+            <div><dt>Байгууллага</dt><dd>${esc(d.customer_name)}</dd></div>
+            <div><dt>Байршил</dt><dd>${esc(d.location || "—")}</dd></div>
+            <div><dt>Суурилуулсан</dt><dd>${fmt(d.install_date)}</dd></div>
+            <div><dt>Баталгаа</dt><dd>${fmt(d.warranty_end_date)} хүртэл <span class="pill ${CLS[d.warranty_state] || "p-off"}">${esc(d.warranty_state)}</span></dd></div>
+            <div><dt>Дараагийн үйлчилгээ</dt><dd>${fmt(d.next_service_date)}</dd></div>
+            <div><dt>Засварын түүх</dt><dd>${d.ticket_count} удаа${d.last_service_date ? `, сүүлд ${fmt(d.last_service_date)}` : ""}</dd></div>
+          </dl></div></article>
+        <div class="actions">
+          ${d.service_phone ? `<a class="btn primary" href="tel:${esc(d.service_phone.replace(/\s/g, ""))}">Сервис рүү залгах · ${esc(d.service_phone)}</a>` : ""}
+          ${d.manual_url ? `<a class="btn" href="${esc(d.manual_url)}" target="_blank" rel="noopener">Гарын авлага (PDF)</a>` : ""}
+          <a class="btn" href="/#device/${encodeURIComponent(d.device_code)}">Засварын бүрэн түүх (ажилтан)</a>
+        </div>
+        <p class="foot">${esc(d.company_name)} · Эмнэлгийн тоног төхөөрөмжийн сервис</p>`;
+    } catch (e) {
+      view.innerHTML = `<div class="empty">${esc(e.message)}</div>`;
+    }
+  }
+  show();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="mn">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>МЕДЖЕК Сервис</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🩺</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<!-- Нэвтрэх дэлгэц: токен байхгүй үед харагдана -->
+<div class="login" id="login" hidden>
+  <div class="card">
+    <h1>МЕДЖЕК Сервис</h1>
+    <p>Төхөөрөмжийн паспорт ба засвар үйлчилгээний бүртгэл</p>
+    <label class="f">Хэрэглэгчийн нэр<input id="lu" autocomplete="username"></label>
+    <label class="f">Нууц үг<input id="lp" type="password" autocomplete="current-password"></label>
+    <button class="btn primary" id="lbtn">Нэвтрэх</button>
+    <div class="err" id="lerr" role="alert"></div>
+  </div>
+</div>
+
+<!-- Үндсэн програм: нэвтэрсний дараа харагдана -->
+<div class="app" id="app" hidden>
+  <nav class="side" aria-label="Үндсэн цэс">
+    <div class="brand">
+      <b>МЕДЖЕК Сервис</b>
+      <small>Төхөөрөмжийн паспорт ба засвар</small>
+      <svg viewBox="0 0 200 26" preserveAspectRatio="none" aria-hidden="true"><polyline fill="none" stroke="#E56A72" stroke-width="1.6" stroke-linejoin="round" points="0,15 38,15 44,13 50,15 62,15 66,19 71,2 76,24 80,15 96,15 104,11 112,15 200,15"/></svg>
+    </div>
+    <div class="user" id="who"></div>
+    <button class="nav" data-go="dash">Хяналтын самбар <span class="count" id="remCount" hidden></span></button>
+    <button class="nav" data-go="devices">Төхөөрөмж</button>
+    <button class="nav" data-go="tickets">Засвар үйлчилгээ <span class="count" id="openCount" hidden></span></button>
+    <button class="nav" data-go="customers">Харилцагч</button>
+    <button class="nav" data-go="labels">QR шошго</button>
+    <div class="foot"><button id="themeBtn">Өнгө солих</button> · <button id="logoutBtn">Гарах</button></div>
+  </nav>
+  <main id="view" tabindex="-1"></main>
+</div>
+
+<dialog id="dlg"><div class="dlg" id="dlgBody"></div></dialog>
+<div class="toast" id="toast" role="status"></div>
+<script src="app.js"></script>
+</body>
+</html>
