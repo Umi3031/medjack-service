@@ -10,7 +10,7 @@
 DROP VIEW  IF EXISTS v_reminders, v_device_passport CASCADE;
 DROP TABLE IF EXISTS service_ticket, device, customer, app_user CASCADE;
 
--- 1. Харилцагч байгууллага ------------------------------------------------
+-- 1. Харилцагч байгууллага 
 CREATE TABLE customer (
     customer_id        SERIAL PRIMARY KEY,
     organization_name  VARCHAR(200) NOT NULL,
@@ -20,7 +20,7 @@ CREATE TABLE customer (
     created_at         TIMESTAMP NOT NULL DEFAULT now()
 );
 
--- 2. Тоног төхөөрөмж (төхөөрөмжийн паспорт) --------------------------------
+-- 2. Тоног төхөөрөмж (төхөөрөмжийн паспорт)
 CREATE TABLE device (
     device_id          SERIAL PRIMARY KEY,
     device_code        VARCHAR(20) UNIQUE NOT NULL,          -- QR код дээрх код: MJ-0001
@@ -41,7 +41,7 @@ CREATE TABLE device (
 CREATE INDEX idx_device_customer ON device(customer_id);
 CREATE INDEX idx_device_warranty ON device(warranty_end_date);
 
--- 3. Засварын дуудлага (Service Ticket) ------------------------------------
+-- 3. Засварын дуудлага (Service Ticket) 
 CREATE TABLE service_ticket (
     ticket_id            SERIAL PRIMARY KEY,
     device_id            INT NOT NULL REFERENCES device(device_id) ON DELETE RESTRICT,
@@ -62,7 +62,7 @@ CREATE TABLE service_ticket (
 CREATE INDEX idx_ticket_device ON service_ticket(device_id);
 CREATE INDEX idx_ticket_status ON service_ticket(status);
 
--- 4. Системийн хэрэглэгч (эрхийн ялгаатай удирдлага) ---------------------
+-- 4. Системийн хэрэглэгч (эрхийн ялгаатай удирдлага) 
 CREATE TABLE app_user (
     user_id        SERIAL PRIMARY KEY,
     username       VARCHAR(60)  NOT NULL UNIQUE,
@@ -73,7 +73,7 @@ CREATE TABLE app_user (
     created_at     TIMESTAMP    NOT NULL DEFAULT now()
 );
 
--- 5. Төхөөрөмжийн паспорт (QR уншуулахад харагдах мэдээлэл) ---------------
+-- 5. Төхөөрөмжийн паспорт (QR уншуулахад харагдах мэдээлэл)
 CREATE VIEW v_device_passport AS
 SELECT d.device_code, d.category, d.brand, d.model, d.serial_number,
        c.organization_name, d.location, d.install_date, d.warranty_end_date,
@@ -86,7 +86,7 @@ JOIN customer c            ON c.customer_id = d.customer_id
 LEFT JOIN service_ticket t ON t.device_id  = d.device_id
 GROUP BY d.device_id, c.organization_name;
 
--- 6. Автомат сануулга: 30 / 14 / 7 хоног -----------------------------------
+-- 6. Автомат сануулга: 30 / 14 / 7 хоног
 CREATE VIEW v_reminders AS
 SELECT d.device_code, d.model, d.serial_number, c.organization_name, c.phone,
        'Баталгаат хугацаа дуусна'::text             AS reminder_type,
@@ -108,7 +108,7 @@ WHERE d.status <> 'Ашиглалтаас гарсан'
   AND d.next_service_date <= CURRENT_DATE + 14
 ORDER BY days_left;
 
--- 7. Жишээ өгөгдөл (бодит харилцагчийн мэдээлэл биш) ----------------------
+-- 7. Жишээ өгөгдөл (бодит харилцагчийн мэдээлэл биш) 
 INSERT INTO customer (organization_name, address, contact_person) VALUES
  ('Батсүмбэр сумын Эрүүл мэндийн төв', 'Төв аймаг, Батсүмбэр сум',       'Лабораторийн эрхлэгч'),
  ('Жишээ клиник А',                   'Улаанбаатар, Баянгол дүүрэг',    'Ерөнхий сувилагч'),
@@ -138,7 +138,6 @@ INSERT INTO service_ticket (device_id, reported_date, problem_description, diagn
  (6,'2026-08-21','Даралт зорилтот утгад хүрэх хугацаа уртассан','Хаалганы жийргэвч элэгдсэн',
   'Жийргэвчийг сольж, туршилтын мөчлөг ажиллуулсан','Хаалганы силикон жийргэвч ×1','Техникийн инженер','Хаагдсан','2026-08-22');
 
--- 8. Хамгаалалтад үзүүлэх жишээ асуулга ------------------------------------
 -- Серийн дугаараар төхөөрөмжийн бүрэн түүх:
 --   SELECT * FROM v_device_passport WHERE serial_number = 'E912-23-00412';
 --   SELECT * FROM service_ticket t JOIN device d USING (device_id)
